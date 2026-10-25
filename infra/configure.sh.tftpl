@@ -1,0 +1,33 @@
+#!/bin/bash
+# Writes the n8n configuration on the server and (re)starts the stack.
+# Used at first boot and for in-place updates through Systems Manager.
+set -euo pipefail
+
+mkdir -p /opt/n8n
+cd /opt/n8n
+echo '${compose_b64}' | base64 -d > compose.yaml
+echo '${caddyfile_b64}' | base64 -d > Caddyfile
+
+secret() {
+  aws ssm get-parameter --region ${region} --name "$1" --with-decryption --query Parameter.Value --output text
+}
+
+umask 077
+cat > .env.new <<EOF
+COMPOSE_PROFILES=https
+N8N_VERSION=${n8n_version}
+TIMEZONE=${timezone}
+POSTGRES_DB=n8n
+POSTGRES_USER=n8n
+POSTGRES_PASSWORD=$(secret ${secret_prefix}/postgres_password)
+N8N_ENCRYPTION_KEY=$(secret ${secret_prefix}/encryption_key)
+N8N_HOST=${domain}
+N8N_PROTOCOL=https
+WEBHOOK_URL=https://${domain}/
+N8N_SECURE_COOKIE=true
+N8N_PROXY_HOPS=1
+N8N_BIND=127.0.0.1
+EOF
+mv .env.new .env
+
+docker compose up -d --remove-orphans

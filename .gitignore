@@ -1,0 +1,8 @@
+.env
+backups/
+# Terraform: provider cache, and state files, which contain the generated secrets
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/terraform.tfvars
+infra/tfplan
